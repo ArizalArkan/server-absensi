@@ -5,6 +5,7 @@ const Attendance = require('../models/AttendanceSiswa');
 const SchoolSettings = require('../models/SchoolSettings');
 const auth = require('../middleware/auth');
 const UserSiswa = require('../models/UserSiswa');
+const UserGuru = require('../models/UserGuru');
 const multer = require('multer');
 
 // Multer setup (stores in local 'uploads/' folder)
@@ -105,6 +106,49 @@ router.get('/', auth, async (req, res) => {
     } catch (err) {
         console.error(err);
         res.status(500).json({ error: err.message });
+    }
+});
+
+
+router.get('/siswa-with-attendance', async (req, res) => {
+    try {
+        // Fetch all users
+        const users = await UserSiswa.find().lean();
+
+        // Fetch attendance records
+        const attendanceRecords = await Attendance.find().populate('username', 'name role').lean();
+
+        // Combine users with attendance data
+        const combinedData = users.map(user => ({
+            ...user,
+            attendance: attendanceRecords.filter(record => record.username._id.toString() === user._id.toString()),
+        }));
+
+        res.json(combinedData);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ msg: 'Server error' });
+    }
+});
+
+router.get('/guru-with-attendance', async (req, res) => {
+    try {
+        // Fetch all users
+        const users = await UserGuru.find().lean();
+
+        // Fetch attendance records
+        const attendanceRecords = await Attendance.find().populate('username', 'name role').lean();
+
+        // Combine users with attendance data
+        const combinedData = users.map(user => ({
+            ...user,
+            attendance: attendanceRecords.filter(record => record.username._id.toString() === user._id.toString()),
+        }));
+
+        res.json(combinedData);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ msg: 'Server error' });
     }
 });
 
