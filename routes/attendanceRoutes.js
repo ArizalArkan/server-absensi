@@ -8,8 +8,6 @@ const UserSiswa = require('../models/UserSiswa');
 const UserGuru = require('../models/UserGuru');
 
 const XLSX = require('xlsx');
-const fs = require('fs');
-const path = require('path');
 // const multer = require('multer');
 
 // Multer setup (stores in local 'uploads/' folder)
@@ -282,10 +280,11 @@ router.get('/siswa-with-attendance', async (req, res) => {
             combinedDataDownload.forEach(user => {
                 user.Attendance.forEach(att => {
                     excelData.push({
-                        Nama: user.Username,
+                        Name: user.Name,
+                        Username: user.Username,
                         Role: user.Role,
-                        TanggalAbsen: att.Date,
-                        AttendanceTime: att.Time,
+                        AttendanceDate: att.Date,
+                        AttendanceTime: att.Time, // Properly formatted
                         Status: att.Status,
                     });
                 });
@@ -296,17 +295,16 @@ router.get('/siswa-with-attendance', async (req, res) => {
             const ws = XLSX.utils.json_to_sheet(excelData);
             XLSX.utils.book_append_sheet(wb, ws, 'Attendance');
 
-            // Write the Excel file
-            const filePath = path.join(__dirname, '../exports', 'attendance.xlsx');
-            XLSX.writeFile(wb, filePath);
+            // Write workbook to a buffer
+            const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
 
-            // Send the file to the client
-            res.download(filePath, 'attendance.xlsx', err => {
-                if (err) {
-                    console.error(err);
-                }
-                fs.unlinkSync(filePath); // Delete file after sending
-            });
+            // Send the buffer as a downloadable file
+            res.setHeader(
+                'Content-Disposition',
+                'attachment; filename="attendance.xlsx"'
+            );
+            res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+            res.send(buffer);
 
             return;
         }
