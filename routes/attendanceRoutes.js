@@ -44,6 +44,7 @@ function deg2rad(deg) {
 router.post('/', auth, async (req, res) => {
     try {
         const { username, latitude, longitude, flag } = req.body; // Add flag (check-in or check-out)
+        console.log(req.body);
 
         if (!flag || !['check-in', 'check-out'].includes(flag)) {
             return res.status(400).json({ msg: 'Invalid flag. Use "check-in" or "check-out"' });
@@ -59,10 +60,8 @@ router.post('/', auth, async (req, res) => {
 
         // Distance check
         const distance = getDistanceFromLatLonInKm(
-            parseFloat(latitude),
-            parseFloat(longitude),
-            schoolLat,
-            schoolLon
+            schoolLon, schoolLat, // School's coordinates
+            parseFloat(longitude), parseFloat(latitude) // User's coordinates
         );
 
         if (distance > schoolSettings.attendanceRadius) {
@@ -100,7 +99,7 @@ router.post('/', auth, async (req, res) => {
                 username: user._id,
                 location: {
                     type: 'Point',
-                    coordinates: [parseFloat(longitude), parseFloat(latitude)],
+                    coordinates: [parseFloat(latitude), parseFloat(longitude)], // ✅ Correct order
                 },
                 flag: 'check-in', // Set flag to check-in
                 status: 'present', // Default status
@@ -117,7 +116,7 @@ router.post('/', auth, async (req, res) => {
                 username: user._id,
                 location: {
                     type: 'Point',
-                    coordinates: [parseFloat(longitude), parseFloat(latitude)],
+                    coordinates: [parseFloat(latitude), parseFloat(longitude)], // ✅ Correct order
                 },
                 flag: 'check-out', // Set flag to check-out
                 status: 'present', // Default status
