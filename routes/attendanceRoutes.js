@@ -44,7 +44,6 @@ function deg2rad(deg) {
 router.post('/', auth, async (req, res) => {
     try {
         const { username, latitude, longitude, flag } = req.body; // Add flag (check-in or check-out)
-        console.log(req.body);
 
         if (!flag || !['check-in', 'check-out'].includes(flag)) {
             return res.status(400).json({ msg: 'Invalid flag. Use "check-in" or "check-out"' });
@@ -86,7 +85,6 @@ router.post('/', auth, async (req, res) => {
             // If flag is "check-in" and an existing record is found, update it
             if (existingAttendance) {
                 existingAttendance.location.coordinates = [parseFloat(longitude), parseFloat(latitude)];
-                existingAttendance.imageUrl = req.file.path;
                 existingAttendance.updatedAt = new Date();
                 await existingAttendance.save();
                 const populatedCheckinExisting = await Attendance.findById(existingAttendance._id).populate('username', 'username');
