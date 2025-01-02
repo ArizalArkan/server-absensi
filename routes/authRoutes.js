@@ -103,7 +103,9 @@ router.post('/login-siswa', async (req, res) => {
             user: {
                 id: siswa._id,
                 name: siswa.username,
-                role: siswa.role
+                role: siswa.role,
+                nis: siswa.nis,
+                phone: siswa.phone
             }
         });
     } catch (err) {
