@@ -6,19 +6,19 @@ const SchoolSettings = require('../models/SchoolSettings');
 const auth = require('../middleware/auth');
 const UserSiswa = require('../models/UserSiswa');
 const UserGuru = require('../models/UserGuru');
-const multer = require('multer');
+// const multer = require('multer');
 
 // Multer setup (stores in local 'uploads/' folder)
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, 'uploads/'); // you need to create this folder
-    },
-    filename: (req, file, cb) => {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        cb(null, uniqueSuffix + '-' + file.originalname);
-    }
-});
-const upload = multer({ storage });
+// const storage = multer.diskStorage({
+//     destination: (req, file, cb) => {
+//         cb(null, 'uploads/'); // you need to create this folder
+//     },
+//     filename: (req, file, cb) => {
+//         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+//         cb(null, uniqueSuffix + '-' + file.originalname);
+//     }
+// });
+// const upload = multer({ storage });
 
 // Helper function to calculate distance in kilometers (Haversine formula)
 function getDistanceFromLatLonInKm(lon1, lat1, lat2, lon2) {
@@ -41,9 +41,13 @@ function deg2rad(deg) {
 // @route  POST /api/attendances
 // @desc   Mark attendance
 // @access Private (student/teacher)
-router.post('/', auth, upload.single('photo'), async (req, res) => {
+router.post('/', auth, async (req, res) => {
     try {
-        const { username, latitude, longitude } = req.body;
+        const { username, latitude, longitude, flag } = req.body; // Add flag (check-in or check-out)
+
+        if (!flag || !['check-in', 'check-out'].includes(flag)) {
+            return res.status(400).json({ msg: 'Invalid flag. Use "check-in" or "check-out"' });
+        }
 
         // Get school settings (assuming only one settings doc)
         const schoolSettings = await SchoolSettings.findOne({});
@@ -55,8 +59,8 @@ router.post('/', auth, upload.single('photo'), async (req, res) => {
 
         // Distance check
         const distance = getDistanceFromLatLonInKm(
-            parseFloat(latitude),  // Correct (user’s latitude)
-            parseFloat(longitude), // Correct (user’s longitude)
+            parseFloat(latitude),
+            parseFloat(longitude),
             schoolLat,
             schoolLon
         );
@@ -65,28 +69,65 @@ router.post('/', auth, upload.single('photo'), async (req, res) => {
             return res.status(400).json({ msg: 'You are not within the allowed radius' });
         }
 
-        // Save attendance
+        // Find the user by username
         const user = await UserSiswa.findOne({ username });
         if (!user) throw new Error('User not found');
 
-        // Create a new attendance record
-        const newAttendance = new Attendance({
-            username: user._id, // Use ObjectId reference
-            location: {
-                type: 'Point',
-                coordinates: [parseFloat(latitude), parseFloat(longitude)],
-            },
-            imageUrl: req.file.path,
-            status: 'pending',
+        // Check for an existing attendance record for today
+        const todayStart = new Date().setHours(0, 0, 0, 0);
+        const todayEnd = new Date().setHours(23, 59, 59, 999);
+
+        const existingAttendance = await Attendance.findOne({
+            username: user._id,
+            createdAt: { $gte: todayStart, $lte: todayEnd }, // Attendance for today
+            flag: 'check-in', // Only check-in records
         });
 
-        await newAttendance.save();
+        if (flag === 'check-in') {
+            // If flag is "check-in" and an existing record is found, update it
+            if (existingAttendance) {
+                existingAttendance.location.coordinates = [parseFloat(longitude), parseFloat(latitude)];
+                existingAttendance.imageUrl = req.file.path;
+                existingAttendance.updatedAt = new Date();
+                await existingAttendance.save();
+                const populatedCheckinExisting = await Attendance.findById(existingAttendance._id).populate('username', 'username');
 
-        // Populate the username field in the response
-        const populatedAttendance = await Attendance.findById(newAttendance._id).populate('username', 'username');
+                return res.json({ msg: 'Check-in updated successfully', attendance: populatedCheckinExisting });
+            }
 
-        res.json({ msg: 'Attendance marked successfully', attendance: populatedAttendance });
+            // If no existing check-in, create a new record
+            const newAttendance = new Attendance({
+                username: user._id,
+                location: {
+                    type: 'Point',
+                    coordinates: [parseFloat(longitude), parseFloat(latitude)],
+                },
+                flag: 'check-in', // Set flag to check-in
+                status: 'present', // Default status
+            });
 
+            await newAttendance.save();
+            const populatedCheckin = await Attendance.findById(newAttendance._id).populate('username', 'username');
+            return res.json({ msg: 'Check-in created successfully', attendance: populatedCheckin });
+        }
+
+        if (flag === 'check-out') {
+            // If flag is "check-out", update or create a check-out record
+            const checkOutAttendance = new Attendance({
+                username: user._id,
+                location: {
+                    type: 'Point',
+                    coordinates: [parseFloat(longitude), parseFloat(latitude)],
+                },
+                flag: 'check-out', // Set flag to check-out
+                status: 'present', // Default status
+            });
+
+            await checkOutAttendance.save();
+            const populatedCheckout = await Attendance.findById(checkOutAttendance._id).populate('username', 'username');
+
+            return res.json({ msg: 'Check-out created successfully', attendance: populatedCheckout });
+        }
     } catch (err) {
         console.error(err);
         res.status(500).json({ msg: 'Server error' });
