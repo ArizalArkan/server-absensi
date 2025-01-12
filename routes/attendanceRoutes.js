@@ -201,7 +201,7 @@ router.get('/', auth, async (req, res) => {
 });
 
 
-router.get('/siswa-with-attendance', async (req, res) => {
+router.get('/guru-with-attendance', async (req, res) => {
     try {
         const { username, id } = req.query; // Accept username or id as query parameters
 
@@ -242,7 +242,7 @@ router.get('/siswa-with-attendance', async (req, res) => {
         if (id) userQuery._id = id;
 
         // Find user(s)
-        const users = await UserSiswa.find(userQuery).lean();
+        const users = await UserGuru.find(userQuery).lean();
 
         if (users.length === 0) {
             return res.status(404).json({ msg: 'User not found' });
@@ -301,13 +301,14 @@ router.get('/siswa-with-attendance', async (req, res) => {
             // Send the buffer as a downloadable file
             res.setHeader(
                 'Content-Disposition',
-                'attachment; filename="attendance.xlsx"'
+                'attachment; filename="attendance_guru.xlsx"'
             );
             res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
             res.send(buffer);
 
             return;
         }
+
         // Combine users with attendance data and calculate lateness
         const combinedData = users.map(user => ({
             ...user,
@@ -333,51 +334,6 @@ router.get('/siswa-with-attendance', async (req, res) => {
         }));
 
         res.json(combinedData);
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ msg: 'Server error' });
-    }
-});
-
-
-router.get('/guru-with-attendance', async (req, res) => {
-    try {
-        // Fetch all users
-        const users = await UserGuru.find().lean();
-
-        // Fetch attendance records
-        const attendanceRecords = await Attendance.find().populate('username', 'name role').lean();
-
-        // Combine users with attendance data
-        const combinedData = users.map(user => ({
-            ...user,
-            attendance: attendanceRecords.filter(record => record.username._id.toString() === user._id.toString()),
-        }));
-
-        res.json(combinedData);
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ msg: 'Server error' });
-    }
-});
-
-// @route  PUT /api/attendances/:id/confirm
-// @desc   Confirm or reject attendance
-// @access Private (admin or teacher)
-router.put('/:id/confirm', auth, async (req, res) => {
-    try {
-        if (req.user.role !== 'admin' && req.user.role !== 'teacher') {
-            return res.status(403).json({ msg: 'Not authorized' });
-        }
-        const { status } = req.body; // "confirmed" or "rejected"
-
-        const attendance = await Attendance.findById(req.params.id);
-        if (!attendance) return res.status(404).json({ msg: 'Attendance not found' });
-
-        attendance.status = status;
-        await attendance.save();
-
-        res.json({ msg: 'Attendance status updated', attendance });
     } catch (err) {
         console.error(err);
         res.status(500).json({ msg: 'Server error' });

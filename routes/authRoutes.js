@@ -115,19 +115,35 @@ router.post('/login-siswa', async (req, res) => {
 
 
 router.post('/login-guru', async (req, res) => {
-    const { nip, password } = req.body;
+    const { username, password } = req.body;
     try {
-        const guru = await UserGuru.findOne({ nip });
-        if (!guru) throw new Error('Invalid credentials, nis not found');
+        const guru = await UserGuru.findOne({ username });
+        console.log("🚀 ~ router.post ~ guru:", guru)
+        if (!guru) throw new Error('Invalid credentials, username guru not found');
 
         const isMatch = await bcrypt.compare(password, guru.password);
         if (!isMatch) throw new Error('Invalid credentials, password not match');
 
-        const token = jwt.sign(guru, process.env.JWT_SECRET, {
+        // Create the payload using only the fields you need
+        const payload = {
+            _id: guru._id,
+            username: guru.username
+        };
+
+        const token = jwt.sign(payload, process.env.JWT_SECRET, {
             expiresIn: '30d',
         });
 
-        res.json({ token });
+        res.json({
+            token,
+            user: {
+                id: guru._id,
+                name: guru.username,
+                role: guru.role,
+                nis: guru.nip,
+                phone: guru.phone
+            }
+        });
     } catch (err) {
         res.status(401).json({ error: err.message });
     }
