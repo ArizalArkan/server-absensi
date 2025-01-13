@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 const attendanceSchema = new mongoose.Schema({
-  username: { type: mongoose.Schema.Types.ObjectId, ref: 'UserSiswa' }, // Reference to UserSiswa
+  username: { type: mongoose.Schema.Types.ObjectId, ref: 'UserGuru' }, // Reference to UserSiswa
   location: {
     type: { type: String, enum: ['Point'], required: true },
     coordinates: { type: [Number], required: true },
@@ -13,4 +13,4 @@ const attendanceSchema = new mongoose.Schema({
 
 attendanceSchema.index({ location: '2dsphere' });
 
-module.exports = mongoose.model('AttendanceSiswa', attendanceSchema);
+module.exports = mongoose.model('AttendanceGuru', attendanceSchema);
