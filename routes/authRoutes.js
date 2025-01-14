@@ -90,7 +90,9 @@ router.post('/login-siswa', async (req, res) => {
         const payload = {
             _id: siswa._id,
             username: siswa.username,
-            role: siswa.role  // assuming you have a "role" field
+            role: siswa.role,  // assuming you have a "role" field
+            nis: siswa.nis,
+            phone: siswa.phone
         };
 
         // Sign the token with the payload (which is now a plain object)
@@ -118,7 +120,6 @@ router.post('/login-guru', async (req, res) => {
     const { username, password } = req.body;
     try {
         const guru = await UserGuru.findOne({ username });
-        console.log("🚀 ~ router.post ~ guru:", guru)
         if (!guru) throw new Error('Invalid credentials, username guru not found');
 
         const isMatch = await bcrypt.compare(password, guru.password);
@@ -127,7 +128,10 @@ router.post('/login-guru', async (req, res) => {
         // Create the payload using only the fields you need
         const payload = {
             _id: guru._id,
-            username: guru.username
+            username: guru.username,
+            role: guru.role,
+            nip: guru.nip,
+            phone: guru.phone
         };
 
         const token = jwt.sign(payload, process.env.JWT_SECRET, {
@@ -140,7 +144,7 @@ router.post('/login-guru', async (req, res) => {
                 id: guru._id,
                 name: guru.username,
                 role: guru.role,
-                nis: guru.nip,
+                nip: guru.nip,
                 phone: guru.phone
             }
         });
